@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpendWise - Daily Expense Tracker & Calculator</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.4);
+            border-radius: 20px;
+        }
+        .glass-panel {
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
+
+    <!-- App Header -->
+    <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-emerald-500 text-white rounded-xl shadow-md">
+                    <i data-lucide="wallet" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">SpendTracker</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium hidden sm:block">Daily Expense Calculator & Budget Manager</p>
+                </div>
+            </div>
+
+            <!-- Top Controls -->
+            <div class="flex items-center space-x-3">
+                <!-- Currency Selector -->
+                <div class="relative">
+                    <select id="currencySelector" onchange="changeCurrency(this.value)" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold py-1.5 px-3 pr-8 rounded-lg border-0 focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none">
+                        <option value="₹">INR (₹)</option>
+                        <option value="$">USD ($)</option>
+                        <option value="€">EUR (€)</option>
+                        <option value="£">GBP (£)</option>
+                        <option value="¥">JPY (¥)</option>
+                        <option value="C$">CAD ($)</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none"></i>
+                </div>
+
+                <!-- Reset Data Button -->
+                <button onclick="resetAllData()" title="Reset All Data to 0" class="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-800/60 transition flex items-center space-x-1 text-xs font-semibold">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">Reset to 0</span>
+                </button>
+
+                <!-- Theme Toggle -->
+                <button onclick="toggleDarkMode()" title="Toggle Dark/Light Mode" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition">
+                    <i data-lucide="moon" id="moonIcon" class="w-5 h-5 hidden dark:block"></i>
+                    <i data-lucide="sun" id="sunIcon" class="w-5 h-5 block dark:hidden"></i>
+                </button>
+
+                <!-- Quick Add Expense Button -->
+                <button onclick="openExpenseModal()" class="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md transition transform active:scale-95">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Add Expense</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Body Layout -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- AI Quick Log Banner -->
+        <div class="bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3 w-full md:w-auto">
+                <div class="p-2.5 bg-white/20 backdrop-blur-md rounded-xl shrink-0">
+                    <i data-lucide="sparkles" class="w-6 h-6 text-amber-300 animate-pulse"></i>
+                </div>
+                <div>
+                    <h2 class="text-base font-bold flex items-center gap-1.5">
+                        <span>Gemini AI Quick-Log</span>
+                        <span class="text-[10px] uppercase font-extrabold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">New</span>
+                    </h2>
+                    <p class="text-xs text-emerald-100">Type or upload a receipt image to log expenses automatically</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <div class="relative flex-1 md:w-80">
+                    <input type="text" id="aiPromptInput" placeholder="e.g. Spent 450 on dinner via UPI today..." class="w-full bg-white/10 dark:bg-slate-900/40 text-white placeholder-emerald-100/70 border border-white/20 rounded-xl pl-3 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+                    <button onclick="processAITextInput()" title="Process with AI" class="absolute right-1.5 top-1.5 p-1 bg-amber-400 hover:bg-amber-300 text-slate-900 rounded-lg transition">
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                
+                <label title="Scan Receipt Image with AI" class="cursor-pointer bg-white/20 hover:bg-white/30 text-white p-2 rounded-xl transition flex items-center justify-center shrink-0">
+                    <i data-lucide="scan" class="w-5 h-5"></i>
+                    <input type="file" id="receiptFileInput" accept="image/*" class="hidden" onchange="handleReceiptUpload(event)">
+                </label>
+            </div>
+        </div>
+
+        <!-- Key Metrics Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Today's Spending -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today's Expense</p>
+                    <h3 id="statToday" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">₹0.00</h3>
+                    <p id="statTodaySub" class="text-xs text-slate-500 mt-1">0 transactions today</p>
+                </div>
+                <div class="p-3 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <i data-lucide="calendar" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <!-- This Month's Expense -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">This Month</p>
+                    <h3 id="statMonth" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">₹0.00</h3>
+                    <p id="statMonthSub" class="text-xs text-slate-500 mt-1">Total accumulated</p>
+                </div>
+                <div class="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl">
+                    <i data-lucide="trending-up" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <!-- Daily Average -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Daily Avg (This Month)</p>
+                    <h3 id="statDailyAvg" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">₹0.00</h3>
+                    <p id="statDailyAvgSub" class="text-xs text-slate-500 mt-1">Based on active days</p>
+                </div>
+                <div class="p-3 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-xl">
+                    <i data-lucide="calculator" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <!-- Remaining Budget -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Monthly Budget Left</p>
+                    <h3 id="statBudgetLeft" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">₹0.00</h3>
+                    <p id="statBudgetPercent" class="text-xs text-emerald-500 font-semibold mt-1">100% remaining</p>
+                </div>
+                <div class="p-3 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-xl">
+                    <i data-lucide="piggy-bank" class="w-6 h-6"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex border-b border-slate-200 dark:border-slate-700 space-x-6 overflow-x-auto">
+            <button onclick="switchTab('dashboard')" id="tabBtn-dashboard" class="tab-btn active text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500 py-3 text-sm font-semibold flex items-center space-x-2 whitespace-nowrap">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                <span>Dashboard Overview</span>
+            </button>
+            <button onclick="switchTab('ledger')" id="tabBtn-ledger" class="tab-btn text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 py-3 text-sm font-semibold flex items-center space-x-2 whitespace-nowrap">
+                <i data-lucide="receipt" class="w-4 h-4"></i>
+                <span>All Expenses Ledger</span>
+            </button>
+            <button onclick="switchTab('budget')" id="tabBtn-budget" class="tab-btn text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 py-3 text-sm font-semibold flex items-center space-x-2 whitespace-nowrap">
+                <i data-lucide="pie-chart" class="w-4 h-4"></i>
+                <span>Budget & Categories</span>
+            </button>
+            <button onclick="switchTab('ai')" id="tabBtn-ai" class="tab-btn text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 py-3 text-sm font-semibold flex items-center space-x-2 whitespace-nowrap">
+                <i data-lucide="bot" class="w-4 h-4 text-emerald-500"></i>
+                <span>AI Financial Hub</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: DASHBOARD -->
+        <div id="tabContent-dashboard" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 7 Days Spending Chart -->
+                <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 dark:text-white">7-Day Spending Trend</h2>
+                            <p class="text-xs text-slate-500">Expense pattern over the last week</p>
+                        </div>
+                        <span class="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium px-2.5 py-1 rounded-full">Daily Breakdown</span>
+                    </div>
+                    <div class="h-64 relative">
+                        <canvas id="weeklyBarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Category Breakdown Pie Chart -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 dark:text-white">Category Expenses</h2>
+                            <p class="text-xs text-slate-500">Distribution this month</p>
+                        </div>
+                    </div>
+                    <div class="h-56 relative flex items-center justify-center">
+                        <canvas id="categoryDoughnutChart"></canvas>
+                    </div>
+                    <div id="categoryMiniLegend" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 grid grid-cols-2 gap-2 text-xs">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions Widget -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white">Recent Transactions</h2>
+                        <p class="text-xs text-slate-500">Your latest logged expenses</p>
+                    </div>
+                    <button onclick="switchTab('ledger')" class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center space-x-1">
+                        <span>View All</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 uppercase text-[11px] font-semibold">
+                            <tr>
+                                <th class="py-2.5 px-3 rounded-l-lg">Category</th>
+                                <th class="py-2.5 px-3">Description</th>
+                                <th class="py-2.5 px-3">Date & Time</th>
+                                <th class="py-2.5 px-3">Payment</th>
+                                <th class="py-2.5 px-3 text-right rounded-r-lg">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentTransactionsTable" class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: LEDGER (Full Expense List) -->
+        <div id="tabContent-ledger" class="tab-content hidden space-y-4">
+            <!-- Filter & Search Toolbar -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
+                <!-- Search Box -->
+                <div class="relative w-full md:w-72">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                    <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Search description or note..." class="w-full bg-slate-100 dark:bg-slate-700/60 border-0 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <!-- Filter Dropdowns -->
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <!-- Category Filter -->
+                    <select id="filterCategory" onchange="applyFilters()" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl border-0 focus:ring-2 focus:ring-emerald-500">
+                        <option value="ALL">All Categories</option>
+                        <option value="Food & Dining">Food & Dining</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Bills & Utilities">Bills & Utilities</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Health & Medical">Health & Medical</option>
+                        <option value="General & Misc">General & Misc</option>
+                    </select>
+
+                    <!-- Payment Method Filter -->
+                    <select id="filterPayment" onchange="applyFilters()" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl border-0 focus:ring-2 focus:ring-emerald-500">
+                        <option value="ALL">All Payment Methods</option>
+                        <option value="UPI / Online">UPI / Online</option>
+                        <option value="Credit/Debit Card">Credit/Debit Card</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+
+                    <!-- Export CSV -->
+                    <button onclick="exportToCSV()" class="flex items-center space-x-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        <span>Export CSV</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Ledger Table -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100/70 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 uppercase text-[11px] font-bold tracking-wider">
+                            <tr>
+                                <th class="py-3.5 px-4">Date & Time</th>
+                                <th class="py-3.5 px-4">Category</th>
+                                <th class="py-3.5 px-4">Description</th>
+                                <th class="py-3.5 px-4">Payment</th>
+                                <th class="py-3.5 px-4 text-right">Amount</th>
+                                <th class="py-3.5 px-4 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fullLedgerTable" class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="emptyLedgerNotice" class="hidden p-8 text-center text-slate-400">
+                    <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                    <p class="font-medium text-slate-600 dark:text-slate-300">No expenses found matching filters.</p>
+                    <p class="text-xs text-slate-400 mt-1">Try resetting search filters or adding a new expense.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: BUDGET & CATEGORIES -->
+        <div id="tabContent-budget" class="tab-content hidden space-y-6">
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white">Monthly Overall Budget Limit</h2>
+                    <p class="text-xs text-slate-500">Set maximum spending threshold to receive alert indicators</p>
+                </div>
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <div class="relative flex-1 md:flex-none">
+                        <span id="budgetCurrencyPrefix" class="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">₹</span>
+                        <input type="number" id="monthlyBudgetInput" class="w-full md:w-48 bg-slate-100 dark:bg-slate-700 border-0 rounded-xl pl-8 pr-3 py-2 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500" placeholder="0">
+                    </div>
+                    <button onclick="saveMonthlyBudget()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition">
+                        Update Limit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Category Spending vs Targets -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">Category Allocations & Health</h3>
+                <div id="categoryBudgetList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: GEMINI AI FINANCIAL HUB -->
+        <div id="tabContent-ai" class="tab-content hidden space-y-6">
+            
+            <!-- AI Feature Grid Header -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- AI Assistant Chat (2 Columns) -->
+                <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 flex flex-col h-[520px]">
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700/60">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2.5 bg-gradient-to-tr from-emerald-500 to-teal-400 text-white rounded-xl shadow-md">
+                                <i data-lucide="message-square-code" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900 dark:text-white">Ask SpendWise AI Assistant</h2>
+                                <p class="text-xs text-slate-500">Ask questions directly about your active expenses & budgeting strategy</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] uppercase font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full">Gemini 3 Flash</span>
+                    </div>
+
+                    <!-- Chat Messages Display Area -->
+                    <div id="aiChatMessages" class="flex-1 overflow-y-auto custom-scrollbar my-4 space-y-3 pr-2 text-sm">
+                        <div class="bg-slate-100 dark:bg-slate-700/50 text-slate-800 dark:text-slate-200 p-3.5 rounded-2xl max-w-[85%] space-y-1">
+                            <p class="font-semibold text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> SpendWise AI
+                            </p>
+                            <p>Hello! I am your AI financial assistant. Ask me anything about your current expenses, spending forecasts, or advice on cutting down costs!</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Prompt Chips -->
+                    <div class="flex flex-wrap gap-1.5 py-2">
+                        <button onclick="sendQuickPrompt('What is my biggest spending category this month?')" class="text-[11px] bg-slate-100 dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-slate-300 hover:text-emerald-600 px-2.5 py-1 rounded-lg transition border border-slate-200 dark:border-slate-600">
+                            💡 Biggest expense category?
+                        </button>
+                        <button onclick="sendQuickPrompt('Project my end-of-month spending based on current daily average.')" class="text-[11px] bg-slate-100 dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-slate-300 hover:text-emerald-600 px-2.5 py-1 rounded-lg transition border border-slate-200 dark:border-slate-600">
+                            📈 Spending projection?
+                        </button>
+                        <button onclick="sendQuickPrompt('Give me 3 realistic tips to reduce my food & dining expenses.')" class="text-[11px] bg-slate-100 dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-slate-300 hover:text-emerald-600 px-2.5 py-1 rounded-lg transition border border-slate-200 dark:border-slate-600">
+                            🍔 Save on food & dining
+                        </button>
+                    </div>
+
+                    <!-- Chat Input Field -->
+                    <div class="relative pt-2">
+                        <input type="text" id="aiChatInput" onkeydown="if(event.key==='Enter') sendAIChatMessage()" placeholder="Ask SpendWise AI a question about your finances..." class="w-full bg-slate-100 dark:bg-slate-700/60 border-0 rounded-xl pl-4 pr-12 py-3 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500">
+                        <button onclick="sendAIChatMessage()" class="absolute right-2 top-3.5 p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-md">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Goal Vision Generator (1 Column) -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center space-x-2.5 mb-3">
+                            <div class="p-2 bg-amber-500/10 text-amber-500 rounded-xl">
+                                <i data-lucide="image" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">AI Savings Goal Motivator</h3>
+                                <p class="text-[11px] text-slate-500">Visualize your financial targets</p>
+                            </div>
+                        </div>
+
+                        <p class="text-xs text-slate-600 dark:text-slate-300 mb-3">Enter a goal (e.g. "Trip to Kyoto in autumn", "Emergency Fund") to generate an inspirational goal card using Gemini Image Model.</p>
+
+                        <div class="space-y-2">
+                            <input type="text" id="goalTitleInput" placeholder="e.g. New Electric Bike / Japan Trip" class="w-full bg-slate-100 dark:bg-slate-700/60 border-0 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500">
+                            <button onclick="generateGoalVisionImage()" id="btnGenGoalImg" class="w-full bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white py-2 rounded-xl text-xs font-semibold shadow-md transition flex items-center justify-center space-x-1.5">
+                                <i data-lucide="wand-2" class="w-4 h-4"></i>
+                                <span>Generate Goal Artwork</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Vision Image Display Box -->
+                    <div id="goalVisionContainer" class="mt-4 rounded-xl border border-slate-200 dark:border-slate-700/70 overflow-hidden bg-slate-100 dark:bg-slate-900/50 min-h-[180px] flex items-center justify-center text-center p-3 text-slate-400 text-xs">
+                        <div class="space-y-1">
+                            <i data-lucide="image-plus" class="w-8 h-8 mx-auto opacity-40"></i>
+                            <p class="font-medium text-slate-500">No Goal Artwork Yet</p>
+                            <p class="text-[10px] text-slate-400">Type a dream goal above to generate artwork!</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Grounded Deep Analysis & Audio Briefing Panel -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-700/60 pb-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-3 bg-gradient-to-tr from-emerald-500 to-teal-400 text-white rounded-2xl shadow-md">
+                            <i data-lucide="bot" class="w-7 h-7"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900 dark:text-white">AI Financial Coach Deep Report</h2>
+                            <p class="text-xs text-slate-500">Comprehensive grounded analysis with search grounding and speech voice-over</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button onclick="generateAIAdvisorReport()" class="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-md transition">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            <span>Generate AI Insights</span>
+                        </button>
+                        <button id="ttsPlayBtn" onclick="playAIVoiceSummary()" disabled class="flex items-center space-x-2 bg-slate-100 dark:bg-slate-700 text-slate-400 px-4 py-2.5 rounded-xl text-xs font-semibold transition cursor-not-allowed">
+                            <i data-lucide="volume-2" class="w-4 h-4"></i>
+                            <span>Listen Audio Briefing</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Advice Output Box -->
+                <div id="aiAdvisorContainer" class="bg-slate-50 dark:bg-slate-900/60 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700 min-h-[140px] flex items-center justify-center text-slate-400 text-sm">
+                    <div class="text-center space-y-2">
+                        <i data-lucide="sparkles" class="w-8 h-8 mx-auto opacity-40"></i>
+                        <p class="font-medium text-slate-600 dark:text-slate-300">No deep report generated yet.</p>
+                        <p class="text-xs text-slate-400 max-w-md">Click "Generate AI Insights" above to analyze your overall ledger and receive market-grounded budgeting advice.</p>
+                    </div>
+                </div>
+
+                <!-- Grounding Sources Container -->
+                <div id="aiSourcesContainer" class="hidden text-xs space-y-2 border-t border-slate-100 dark:border-slate-700/60 pt-4">
+                    <span class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Sources Grounded via Google Search:</span>
+                    <div id="aiSourcesList" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ADD / EDIT EXPENSE MODAL -->
+    <div id="expenseModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl max-w-md w-full overflow-hidden transform transition-all">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700/70 flex items-center justify-between">
+                <h3 id="modalTitle" class="text-lg font-bold text-slate-900 dark:text-white">Add Expense</h3>
+                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form id="expenseForm" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="editingId" value="">
+
+                <!-- Amount Field -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Amount</label>
+                    <div class="relative">
+                        <span id="modalCurrencySymbol" class="absolute left-3 top-2.5 text-slate-400 font-bold">₹</span>
+                        <input type="number" step="0.01" id="amountInput" required min="0.01" class="w-full pl-8 pr-3 py-2 bg-slate-100 dark:bg-slate-700 border-0 rounded-xl text-lg font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00">
+                    </div>
+                </div>
+
+                <!-- Category Field -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Category</label>
+                    <select id="categoryInput" required class="w-full bg-slate-100 dark:bg-slate-700 border-0 rounded-xl py-2.5 px-3 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 font-medium">
+                        <option value="Food & Dining">🍔 Food & Dining</option>
+                        <option value="Transportation">🚗 Transportation</option>
+                        <option value="Shopping">🛍️ Shopping</option>
+                        <option value="Bills & Utilities">⚡ Bills & Utilities</option>
+                        <option value="Entertainment">🎬 Entertainment</option>
+                        <option value="Health & Medical">🏥 Health & Medical</option>
+                        <option value="General & Misc">📦 General & Misc</option>
+                    </select>
+                </div>
+
+                <!-- Payment Method Field -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Payment Method</label>
+                    <select id="paymentInput" required class="w-full bg-slate-100 dark:bg-slate-700 border-0 rounded-xl py-2.5 px-3 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 font-medium">
+                        <option value="UPI / Online">📲 UPI / Online</option>
+                        <option value="Credit/Debit Card">💳 Credit/Debit Card</option>
+                        <option value="Cash">💵 Cash</option>
+                        <option value="Bank Transfer">🏦 Bank Transfer</option>
+                    </select>
+                </div>
+
+                <!-- Date & Time Grid -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Date</label>
+                        <input type="date" id="dateInput" required class="w-full bg-slate-100 dark:bg-slate-700 border-0 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Time</label>
+                        <input type="time" id="timeInput" required class="w-full bg-slate-100 dark:bg-slate-700 border-0 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <!-- Description / Notes -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Note / Description</label>
+                    <input type="text" id="descInput" placeholder="e.g. Grocery shopping at supermarket" class="w-full bg-slate-100 dark:bg-slate-700 border-0 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <!-- Modal Actions -->
+                <div class="pt-3 flex space-x-3">
+                    <button type="button" onclick="closeExpenseModal()" class="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-md">
+                        Save Expense
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <script>
+        const defaultExpenses = [];
+
+        // Global State Variables
+        let expenses = JSON.parse(localStorage.getItem('spendwise_expenses')) || defaultExpenses;
+        let currency = localStorage.getItem('spendwise_currency') || '₹';
+        let monthlyBudget = parseFloat(localStorage.getItem('spendwise_budget')) || 0;
+        let weeklyChartInstance = null;
+        let categoryChartInstance = null;
+        let latestAiAdviceText = "";
+
+        // Gemini API Config
+        const apiKey = ""; // Built-in runtime key support
+        
+        // Helper: Exponential Backoff Fetch for Gemini API
+        async function fetchGeminiWithBackoff(url, options, retries = 3, backoff = 1000) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url, options);
+                    if (res.ok) return res;
+                    if (res.status === 429 || res.status >= 500) {
+                        await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
+                        continue;
+                    }
+                    return res;
+                } catch (e) {
+                    if (i === retries - 1) throw e;
+                    await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
+                }
+            }
+        }
+
+        // AI Feature 1: Send Interactive Chat Message to Gemini LLM
+        async function sendAIChatMessage(customText = null) {
+            const chatInput = document.getElementById('aiChatInput');
+            const messageText = customText || chatInput.value.trim();
+            if (!messageText) return;
+
+            const chatContainer = document.getElementById('aiChatMessages');
+            
+            // Render User Message
+            const userMsgDiv = document.createElement('div');
+            userMsgDiv.className = "bg-emerald-600 text-white p-3 rounded-2xl max-w-[85%] ml-auto font-medium text-xs shadow-sm";
+            userMsgDiv.innerText = messageText;
+            chatContainer.appendChild(userMsgDiv);
+
+            if (!customText) chatInput.value = '';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Render AI Loading Skeleton
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = "bg-slate-100 dark:bg-slate-700/50 text-slate-800 dark:text-slate-200 p-3.5 rounded-2xl max-w-[85%] text-xs flex items-center space-x-2";
+            loadingDiv.innerHTML = `
+                <div class="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                <span>SpendWise AI is thinking...</span>
+            `;
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Prepare LLM Context from Active Ledger State
+            const totalSpent = expenses.reduce((acc, e) => acc + parseFloat(e.amount), 0);
+            const contextPrompt = `You are SpendWise AI, a friendly and smart personal finance assistant.
+Active Currency: ${currency}
+Monthly Budget Cap: ${currency}${monthlyBudget}
+Total Spending So Far: ${currency}${totalSpent}
+Recorded Ledger Transactions: ${JSON.stringify(expenses.slice(0, 20))}
+
+User Question: "${messageText}"
+Provide a concise, helpful, and direct answer (2-4 bullet points or short paragraphs).`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetchGeminiWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: contextPrompt }] }]
+                    })
+                });
+
+                const result = await response.json();
+                const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't process that query right now.";
+
+                loadingDiv.remove();
+
+                const aiMsgDiv = document.createElement('div');
+                aiMsgDiv.className = "bg-slate-100 dark:bg-slate-700/50 text-slate-800 dark:text-slate-200 p-3.5 rounded-2xl max-w-[85%] space-y-1 text-xs leading-relaxed whitespace-pre-line shadow-sm";
+                aiMsgDiv.innerHTML = `
+                    <p class="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 text-[11px]">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> SpendWise AI
+                    </p>
+                    <p>${escapeHtml(aiResponseText)}</p>
+                `;
+                chatContainer.appendChild(aiMsgDiv);
+                lucide.createIcons();
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            } catch (err) {
+                console.error(err);
+                loadingDiv.innerHTML = `<span class="text-red-500 font-semibold">Error communicating with Gemini API.</span>`;
+            }
+        }
+
+        function sendQuickPrompt(promptText) {
+            sendAIChatMessage(promptText);
+        }
+
+        // AI Feature 2: Generate Goal Vision Card Artwork using Gemini Image Model
+        async function generateGoalVisionImage() {
+            const titleInput = document.getElementById('goalTitleInput');
+            const goalTitle = titleInput.value.trim();
+            if (!goalTitle) {
+                showToast("Please enter a savings goal title first.", "error");
+                return;
+            }
+
+            const btn = document.getElementById('btnGenGoalImg');
+            const container = document.getElementById('goalVisionContainer');
+
+            btn.disabled = true;
+            btn.innerHTML = `<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Generating Artwork...</span>`;
+            
+            container.innerHTML = `
+                <div class="text-center py-6 space-y-2">
+                    <div class="w-7 h-7 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">Gemini Image AI is creating goal vision artwork...</p>
+                </div>
+            `;
+
+            const imagePrompt = `A beautiful, inspiring artwork representing the financial savings goal: "${goalTitle}". Modern vector aesthetic, clean layout, vibrant digital illustration, high resolution.`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetchGeminiWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: imagePrompt }] }],
+                        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+                    })
+                });
+
+                const result = await response.json();
+                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+
+                if (base64Data) {
+                    const imageUrl = `data:image/png;base64,${base64Data}`;
+                    container.innerHTML = `
+                        <div class="relative group w-full h-full">
+                            <img src="${imageUrl}" alt="${escapeHtml(goalTitle)}" class="w-full h-48 object-cover rounded-xl shadow-md">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent rounded-xl flex items-end p-3">
+                                <div>
+                                    <span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">Goal Vision</span>
+                                    <h4 class="text-xs font-bold text-white mt-1">${escapeHtml(goalTitle)}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    showToast(`Generated goal artwork for "${goalTitle}"!`);
+                } else {
+                    container.innerHTML = `<p class="text-xs text-red-500">Failed to generate image artwork.</p>`;
+                }
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<p class="text-xs text-red-500">Gemini Image API request failed.</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="wand-2" class="w-4 h-4"></i><span>Generate Goal Artwork</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        // AI Feature 3: Process Natural Language Expense Prompt
+        async function processAITextInput() {
+            const promptInput = document.getElementById('aiPromptInput');
+            const promptText = promptInput.value.trim();
+            if (!promptText) {
+                showToast("Please enter an expense description.", "error");
+                return;
+            }
+
+            showToast("Gemini AI analyzing request...", "success");
+            const today = new Date().toISOString().split('T')[0];
+            const currentTime = new Date().toTimeString().substring(0, 5);
+
+            const systemPrompt = `You are an expert expense parsing engine. Parse the user prompt into structured expense fields.
+Current Date: ${today}
+Current Time: ${currentTime}
+Categories allowed: "Food & Dining", "Transportation", "Shopping", "Bills & Utilities", "Entertainment", "Health & Medical", "General & Misc".
+Payment Methods allowed: "UPI / Online", "Credit/Debit Card", "Cash", "Bank Transfer".`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: `Parse this expense description: "${promptText}"` }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            amount: { type: "NUMBER" },
+                            category: { type: "STRING" },
+                            payment: { type: "STRING" },
+                            date: { type: "STRING" },
+                            time: { type: "STRING" },
+                            desc: { type: "STRING" }
+                        },
+                        propertyOrdering: ["amount", "category", "payment", "date", "time", "desc"]
+                    }
+                }
+            };
+
+            try {
+                const response = await fetchGeminiWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (jsonText) {
+                    const parsed = JSON.parse(jsonText);
+                    const newExp = {
+                        id: Date.now().toString(),
+                        amount: parsed.amount || 0,
+                        category: parsed.category || "General & Misc",
+                        payment: parsed.payment || "UPI / Online",
+                        date: parsed.date || today,
+                        time: parsed.time || currentTime,
+                        desc: parsed.desc || promptText
+                    };
+                    expenses.unshift(newExp);
+                    saveData();
+                    renderApp();
+                    promptInput.value = '';
+                    showToast(`Added ${currency}${newExp.amount} for ${newExp.desc}!`);
+                } else {
+                    showToast("Could not parse expense with AI.", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("AI processing failed. Check network.", "error");
+            }
+        }
+
+        // AI Feature 2: Scan Receipt Image with Vision LLM
+        async function handleReceiptUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showToast("Scanning receipt with Gemini Vision...", "success");
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                const today = new Date().toISOString().split('T')[0];
+                const currentTime = new Date().toTimeString().substring(0, 5);
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: `Extract expense details from this receipt image. Today's date is ${today}. Return valid JSON.` },
+                            { inlineData: { mimeType: file.type || "image/png", data: base64Data } }
+                        ]
+                    }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                amount: { type: "NUMBER" },
+                                category: { type: "STRING" },
+                                payment: { type: "STRING" },
+                                date: { type: "STRING" },
+                                time: { type: "STRING" },
+                                desc: { type: "STRING" }
+                            },
+                            propertyOrdering: ["amount", "category", "payment", "date", "time", "desc"]
+                        }
+                    }
+                };
+
+                try {
+                    const response = await fetchGeminiWithBackoff(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (jsonText) {
+                        const parsed = JSON.parse(jsonText);
+                        // Open prefilled expense modal for user verification
+                        openExpenseModal();
+                        document.getElementById('amountInput').value = parsed.amount || '';
+                        document.getElementById('categoryInput').value = parsed.category || 'General & Misc';
+                        document.getElementById('paymentInput').value = parsed.payment || 'UPI / Online';
+                        document.getElementById('dateInput').value = parsed.date || today;
+                        document.getElementById('timeInput').value = parsed.time || currentTime;
+                        document.getElementById('descInput').value = parsed.desc || 'Scanned Receipt';
+                        showToast("Receipt details extracted into form!");
+                    } else {
+                        showToast("Could not read receipt.", "error");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast("Receipt scanning failed.", "error");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // AI Feature 3: Generate Grounded AI Financial Report
+        async function generateAIAdvisorReport() {
+            const container = document.getElementById('aiAdvisorContainer');
+            container.innerHTML = `
+                <div class="text-center py-8 space-y-3">
+                    <div class="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p class="font-medium text-slate-700 dark:text-slate-200">Gemini AI is analyzing your ledger...</p>
+                </div>
+            `;
+
+            const totalSpent = expenses.reduce((acc, e) => acc + parseFloat(e.amount), 0);
+            const promptContext = `Act as a personal financial wealth coach. Analyze this current monthly spending situation:
+Currency Symbol: ${currency}
+Monthly Budget Threshold: ${currency}${monthlyBudget}
+Total Spent So Far: ${currency}${totalSpent}
+Recorded Expenses List: ${JSON.stringify(expenses.slice(0, 15))}
+
+Provide:
+1. Short Summary Assessment (2-3 sentences).
+2. 3 Specific Actionable Savings Recommendations.
+3. Over-spending alert or warning if budget is nearing limit.
+Keep tone professional, encouraging, and clear.`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: promptContext }] }],
+                tools: [{ "google_search": {} }]
+            };
+
+            try {
+                const response = await fetchGeminiWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    latestAiAdviceText = candidate.content.parts[0].text;
+                    
+                    // Render formatting
+                    container.className = "bg-slate-50 dark:bg-slate-900/60 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-sm leading-relaxed whitespace-pre-line";
+                    container.innerText = latestAiAdviceText;
+
+                    // Render Grounding Sources if present
+                    const sources = candidate.groundingMetadata?.groundingAttributions || [];
+                    const sourcesListEl = document.getElementById('aiSourcesList');
+                    const sourcesContainer = document.getElementById('aiSourcesContainer');
+                    sourcesListEl.innerHTML = '';
+
+                    if (sources.length > 0) {
+                        sources.forEach(src => {
+                            if (src.web?.uri && src.web?.title) {
+                                sourcesListEl.innerHTML += `
+                                    <a href="${src.web.uri}" target="_blank" class="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2.5 py-1 rounded-lg text-[11px] font-medium hover:underline inline-flex items-center space-x-1">
+                                        <span>${escapeHtml(src.web.title)}</span>
+                                        <i data-lucide="external-link" class="w-3 h-3"></i>
+                                    </a>
+                                `;
+                            }
+                        });
+                        sourcesContainer.classList.remove('hidden');
+                        lucide.createIcons();
+                    } else {
+                        sourcesContainer.classList.add('hidden');
+                    }
+
+                    // Enable TTS Button
+                    const ttsBtn = document.getElementById('ttsPlayBtn');
+                    ttsBtn.disabled = false;
+                    ttsBtn.className = "flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-md transition cursor-pointer";
+
+                } else {
+                    container.innerText = "Failed to generate AI advice report.";
+                }
+            } catch (err) {
+                console.error(err);
+                container.innerText = "Error connecting to Gemini API.";
+            }
+        }
+
+        // AI Feature 4: Play AI Spoken Audio Briefing (TTS API)
+        async function playAIVoiceSummary() {
+            if (!latestAiAdviceText) return;
+
+            showToast("Generating voice audio summary...", "success");
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    parts: [{ text: `Say encouragingly: ${latestAiAdviceText.substring(0, 300)}` }]
+                }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Aoede" }
+                        }
+                    }
+                }
+            };
+
+            try {
+                const response = await fetchGeminiWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const base64Audio = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (base64Audio && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 24000;
+                    
+                    const pcmBuffer = base64ToArrayBuffer(base64Audio);
+                    const pcm16 = new Int16Array(pcmBuffer);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+                    showToast("Playing voice summary...");
+                } else {
+                    showToast("Audio generation failed.", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Failed to stream TTS audio.", "error");
+            }
+        }
+
+        // Helper PCM16 to WAV conversion utilities
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcm16, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(buffer);
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcm16.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcm16.length * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcm16.length; i++, offset += 2) {
+                view.setInt16(offset, pcm16[i], true);
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // Reset all expenses and budget to 0
+        function resetAllData() {
+            expenses = [];
+            monthlyBudget = 0;
+            localStorage.removeItem('spendwise_expenses');
+            localStorage.removeItem('spendwise_budget');
+            document.getElementById('monthlyBudgetInput').value = 0;
+            saveData();
+            renderApp();
+            showToast("All expense records and budget reset to 0.");
+        }
+
+        // Category Icon and Color Maps
+        const categoryMeta = {
+            'Food & Dining': { icon: 'utensils', color: '#ef4444', bg: 'bg-red-500/10 text-red-500' },
+            'Transportation': { icon: 'car', color: '#3b82f6', bg: 'bg-blue-500/10 text-blue-500' },
+            'Shopping': { icon: 'shopping-bag', color: '#ec4899', bg: 'bg-pink-500/10 text-pink-500' },
+            'Bills & Utilities': { icon: 'zap', color: '#f59e0b', bg: 'bg-amber-500/10 text-amber-500' },
+            'Entertainment': { icon: 'film', color: '#8b5cf6', bg: 'bg-purple-500/10 text-purple-500' },
+            'Health & Medical': { icon: 'heart-pulse', color: '#10b981', bg: 'bg-emerald-500/10 text-emerald-500' },
+            'General & Misc': { icon: 'package', color: '#64748b', bg: 'bg-slate-500/10 text-slate-500' }
+        };
+
+        // Utility: Get Relative Date YYYY-MM-DD string
+        function getRelativeDate(offsetDays) {
+            const d = new Date();
+            d.setDate(d.getDate() + offsetDays);
+            return d.toISOString().split('T')[0];
+        }
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('currencySelector').value = currency;
+            document.getElementById('monthlyBudgetInput').value = monthlyBudget;
+            updateCurrencyUI();
+            renderApp();
+            lucide.createIcons();
+        });
+
+        // Toggle Dark/Light Theme
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('spendwise_theme', isDark ? 'dark' : 'light');
+            renderCharts(); // Re-render charts for color adjustment
+        }
+
+        // Currency Switcher
+        function changeCurrency(newCurr) {
+            currency = newCurr;
+            localStorage.setItem('spendwise_currency', currency);
+            updateCurrencyUI();
+            renderApp();
+        }
+
+        function updateCurrencyUI() {
+            document.getElementById('modalCurrencySymbol').innerText = currency;
+            document.getElementById('budgetCurrencyPrefix').innerText = currency;
+        }
+
+        // Save State
+        function saveData() {
+            localStorage.setItem('spendwise_expenses', JSON.stringify(expenses));
+            localStorage.setItem('spendwise_budget', monthlyBudget.toString());
+        }
+
+        // Format Money Utility
+        function formatMoney(amount) {
+            return `${currency}${parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        // Tab Navigation Switcher
+        function switchTab(tabKey) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('text-emerald-600', 'dark:text-emerald-400', 'border-b-2', 'border-emerald-500');
+                el.classList.add('text-slate-500', 'dark:text-slate-400');
+            });
+
+            document.getElementById(`tabContent-${tabKey}`).classList.remove('hidden');
+            const btn = document.getElementById(`tabBtn-${tabKey}`);
+            btn.classList.add('text-emerald-600', 'dark:text-emerald-400', 'border-b-2', 'border-emerald-500');
+            btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+
+            if (tabKey === 'dashboard') {
+                renderCharts();
+            }
+        }
+
+        // Main Render Manager
+        function renderApp() {
+            calculateStats();
+            renderRecentTable();
+            renderFullLedger();
+            renderCategoryBudgets();
+            renderCharts();
+        }
+
+        // Calculate Overview Statistics
+        function calculateStats() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const currentMonthStr = todayStr.substring(0, 7);
+
+            let todayTotal = 0;
+            let todayCount = 0;
+            let monthTotal = 0;
+            const activeDaysMonth = new Set();
+
+            expenses.forEach(item => {
+                if (item.date === todayStr) {
+                    todayTotal += parseFloat(item.amount);
+                    todayCount++;
+                }
+                if (item.date.startsWith(currentMonthStr)) {
+                    monthTotal += parseFloat(item.amount);
+                    activeDaysMonth.add(item.date);
+                }
+            });
+
+            // Update DOM Stats
+            document.getElementById('statToday').innerText = formatMoney(todayTotal);
+            document.getElementById('statTodaySub').innerText = `${todayCount} ${todayCount === 1 ? 'transaction' : 'transactions'} today`;
+
+            document.getElementById('statMonth').innerText = formatMoney(monthTotal);
+
+            const daysInMonth = activeDaysMonth.size || 1;
+            const dailyAvg = monthTotal / daysInMonth;
+            document.getElementById('statDailyAvg').innerText = formatMoney(dailyAvg);
+            document.getElementById('statDailyAvgSub').innerText = `Across ${daysInMonth} recorded ${daysInMonth === 1 ? 'day' : 'days'}`;
+
+            const budgetLeft = monthlyBudget - monthTotal;
+            document.getElementById('statBudgetLeft').innerText = formatMoney(budgetLeft);
+            
+            const percentLeft = Math.max(0, Math.round((budgetLeft / (monthlyBudget || 1)) * 100));
+            const statPercentEl = document.getElementById('statBudgetPercent');
+            statPercentEl.innerText = `${percentLeft}% remaining`;
+            if (percentLeft < 15) {
+                statPercentEl.className = 'text-xs text-red-500 font-semibold mt-1';
+            } else if (percentLeft < 35) {
+                statPercentEl.className = 'text-xs text-amber-500 font-semibold mt-1';
+            } else {
+                statPercentEl.className = 'text-xs text-emerald-500 font-semibold mt-1';
+            }
+        }
+
+        // Render Recent Transactions Table
+        function renderRecentTable() {
+            const tableBody = document.getElementById('recentTransactionsTable');
+            tableBody.innerHTML = '';
+
+            const sorted = [...expenses].sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
+            const recent = sorted.slice(0, 5);
+
+            if (recent.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">No expenses recorded yet. Click "+ Add Expense" to begin.</td></tr>`;
+                return;
+            }
+
+            recent.forEach(exp => {
+                const meta = categoryMeta[exp.category] || categoryMeta['General & Misc'];
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition";
+                row.innerHTML = `
+                    <td class="py-3 px-3">
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${meta.bg}">
+                            <span>${exp.category}</span>
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 font-medium text-slate-800 dark:text-slate-200">${escapeHtml(exp.desc || 'No description')}</td>
+                    <td class="py-3 px-3 text-slate-500 text-xs">${exp.date} <span class="text-slate-400">${exp.time}</span></td>
+                    <td class="py-3 px-3 text-slate-500 text-xs">${exp.payment}</td>
+                    <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">${formatMoney(exp.amount)}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Render Full Ledger Table
+        function renderFullLedger(filteredList = null) {
+            const tableBody = document.getElementById('fullLedgerTable');
+            const emptyNotice = document.getElementById('emptyLedgerNotice');
+            tableBody.innerHTML = '';
+
+            const list = filteredList || [...expenses].sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
+
+            if (list.length === 0) {
+                emptyNotice.classList.remove('hidden');
+                return;
+            } else {
+                emptyNotice.classList.add('hidden');
+            }
+
+            list.forEach(exp => {
+                const meta = categoryMeta[exp.category] || categoryMeta['General & Misc'];
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition";
+                row.innerHTML = `
+                    <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300 font-medium text-xs">
+                        ${exp.date} <span class="text-slate-400 ml-1">${exp.time}</span>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${meta.bg}">
+                            <span>${exp.category}</span>
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4 font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(exp.desc || '-')}</td>
+                    <td class="py-3.5 px-4 text-slate-500 text-xs font-medium">${exp.payment}</td>
+                    <td class="py-3.5 px-4 text-right font-bold text-slate-900 dark:text-white">${formatMoney(exp.amount)}</td>
+                    <td class="py-3.5 px-4 text-center space-x-2">
+                        <button onclick="editExpense('${exp.id}')" title="Edit" class="p-1 text-slate-400 hover:text-emerald-500 transition">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="deleteExpense('${exp.id}')" title="Delete" class="p-1 text-slate-400 hover:text-red-500 transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+            lucide.createIcons();
+        }
+
+        // Apply Filters on Ledger
+        function applyFilters() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const cat = document.getElementById('filterCategory').value;
+            const pay = document.getElementById('filterPayment').value;
+
+            const filtered = expenses.filter(exp => {
+                const matchesSearch = (exp.desc || '').toLowerCase().includes(search) || exp.category.toLowerCase().includes(search);
+                const matchesCat = (cat === 'ALL') || (exp.category === cat);
+                const matchesPay = (pay === 'ALL') || (exp.payment === pay);
+                return matchesSearch && matchesCat && matchesPay;
+            }).sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
+
+            renderFullLedger(filtered);
+        }
+
+        // Render Chart.js Visualizations
+        function renderCharts() {
+            // 1. Weekly Spending Bar Chart
+            const last7Days = [];
+            const dayTotals = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' });
+                last7Days.push(dayLabel);
+
+                const sum = expenses.filter(e => e.date === dateStr).reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
+                dayTotals.push(sum);
+            }
+
+            const ctxBar = document.getElementById('weeklyBarChart').getContext('2d');
+            if (weeklyChartInstance) weeklyChartInstance.destroy();
+
+            weeklyChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: last7Days,
+                    datasets: [{
+                        label: `Spent (${currency})`,
+                        data: dayTotals,
+                        backgroundColor: '#22c55e',
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#16a34a'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(156, 163, 175, 0.1)' },
+                            ticks: {
+                                callback: value => currency + value
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Category Pie / Doughnut Chart
+            const categorySums = {};
+            Object.keys(categoryMeta).forEach(cat => categorySums[cat] = 0);
+
+            expenses.forEach(e => {
+                if (categorySums[e.category] !== undefined) {
+                    categorySums[e.category] += parseFloat(e.amount);
+                } else {
+                    categorySums['General & Misc'] = (categorySums['General & Misc'] || 0) + parseFloat(e.amount);
+                }
+            });
+
+            const catLabels = Object.keys(categorySums).filter(c => categorySums[c] > 0);
+            const catData = catLabels.map(c => categorySums[c]);
+            const catColors = catLabels.map(c => categoryMeta[c]?.color || '#64748b');
+
+            const ctxDoughnut = document.getElementById('categoryDoughnutChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            categoryChartInstance = new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catData.length ? catData : [1],
+                        backgroundColor: catData.length ? catColors : ['#cbd5e1'],
+                        borderWidth: 2,
+                        borderColor: 'transparent'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Populate Legend
+            const miniLegend = document.getElementById('categoryMiniLegend');
+            miniLegend.innerHTML = '';
+            catLabels.forEach((cat, idx) => {
+                miniLegend.innerHTML += `
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${catColors[idx]}"></span>
+                        <span class="text-slate-600 dark:text-slate-300 truncate">${cat}: <strong class="text-slate-900 dark:text-white">${formatMoney(catData[idx])}</strong></span>
+                    </div>
+                `;
+            });
+        }
+
+        // Category Budget Cards Render
+        function renderCategoryBudgets() {
+            const container = document.getElementById('categoryBudgetList');
+            container.innerHTML = '';
+
+            const currentMonthStr = new Date().toISOString().split('T')[0].substring(0, 7);
+            const categoryTotals = {};
+            Object.keys(categoryMeta).forEach(cat => categoryTotals[cat] = 0);
+
+            expenses.filter(e => e.date.startsWith(currentMonthStr)).forEach(e => {
+                if (categoryTotals[e.category] !== undefined) {
+                    categoryTotals[e.category] += parseFloat(e.amount);
+                }
+            });
+
+            // Default target per category as fraction of monthly budget
+            const targetFracs = {
+                'Food & Dining': 0.30,
+                'Bills & Utilities': 0.25,
+                'Transportation': 0.15,
+                'Shopping': 0.15,
+                'Entertainment': 0.10,
+                'Health & Medical': 0.10,
+                'General & Misc': 0.10
+            };
+
+            Object.keys(categoryMeta).forEach(cat => {
+                const spent = categoryTotals[cat] || 0;
+                const catLimit = Math.round(monthlyBudget * (targetFracs[cat] || 0.10));
+                const pct = Math.min(100, Math.round((spent / (catLimit || 1)) * 100));
+                
+                let progressColor = 'bg-emerald-500';
+                if (pct > 85) progressColor = 'bg-red-500';
+                else if (pct > 65) progressColor = 'bg-amber-500';
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 dark:bg-slate-700/40 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700 space-y-2";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center text-sm font-bold text-slate-800 dark:text-slate-200">
+                        <span>${cat}</span>
+                        <span>${formatMoney(spent)} <span class="text-xs text-slate-400 font-normal">/ ${formatMoney(catLimit)}</span></span>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-600 h-2.5 rounded-full overflow-hidden">
+                        <div class="${progressColor} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>${pct}% used</span>
+                        <span>${formatMoney(Math.max(0, catLimit - spent))} remaining</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Save Monthly Budget Form
+        function saveMonthlyBudget() {
+            const input = document.getElementById('monthlyBudgetInput');
+            const val = parseFloat(input.value);
+            if (!isNaN(val) && val >= 0) {
+                monthlyBudget = val;
+                saveData();
+                renderApp();
+                showToast("Monthly budget updated successfully!");
+            } else {
+                showToast("Please enter a valid budget amount", "error");
+            }
+        }
+
+        // Modal Control Functions
+        function openExpenseModal() {
+            document.getElementById('modalTitle').innerText = 'Add Expense';
+            document.getElementById('editingId').value = '';
+            document.getElementById('amountInput').value = '';
+            document.getElementById('descInput').value = '';
+            document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+            document.getElementById('timeInput').value = new Date().toTimeString().substring(0, 5);
+            document.getElementById('expenseModal').classList.remove('hidden');
+        }
+
+        function closeExpenseModal() {
+            document.getElementById('expenseModal').classList.add('hidden');
+        }
+
+        function editExpense(id) {
+            const exp = expenses.find(e => e.id === id);
+            if (!exp) return;
+
+            document.getElementById('modalTitle').innerText = 'Edit Expense';
+            document.getElementById('editingId').value = exp.id;
+            document.getElementById('amountInput').value = exp.amount;
+            document.getElementById('categoryInput').value = exp.category;
+            document.getElementById('paymentInput').value = exp.payment;
+            document.getElementById('dateInput').value = exp.date;
+            document.getElementById('timeInput').value = exp.time;
+            document.getElementById('descInput').value = exp.desc || '';
+
+            document.getElementById('expenseModal').classList.remove('hidden');
+        }
+
+        function deleteExpense(id) {
+            expenses = expenses.filter(e => e.id !== id);
+            saveData();
+            renderApp();
+            showToast("Expense item deleted.");
+        }
+
+        // Handle Add/Edit Form Submit
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editingId').value;
+            const amount = parseFloat(document.getElementById('amountInput').value);
+            const category = document.getElementById('categoryInput').value;
+            const payment = document.getElementById('paymentInput').value;
+            const date = document.getElementById('dateInput').value;
+            const time = document.getElementById('timeInput').value;
+            const desc = document.getElementById('descInput').value.trim();
+
+            if (isNaN(amount) || amount <= 0) {
+                showToast("Please enter a valid positive amount", "error");
+                return;
+            }
+
+            if (editId) {
+                // Update existing
+                const index = expenses.findIndex(e => e.id === editId);
+                if (index !== -1) {
+                    expenses[index] = { id: editId, amount, category, payment, date, time, desc };
+                    showToast("Expense updated successfully!");
+                }
+            } else {
+                // Add new
+                const newExp = {
+                    id: Date.now().toString(),
+                    amount,
+                    category,
+                    payment,
+                    date,
+                    time,
+                    desc
+                };
+                expenses.unshift(newExp);
+                showToast("New expense logged!");
+            }
+
+            saveData();
+            closeExpenseModal();
+            renderApp();
+        }
+
+        // CSV Export Functionality
+        function exportToCSV() {
+            if (expenses.length === 0) {
+                showToast("No data available to export.", "error");
+                return;
+            }
+
+            const headers = ["ID", "Date", "Time", "Category", "Payment Method", "Amount", "Description"];
+            const rows = expenses.map(e => [
+                e.id,
+                e.date,
+                e.time,
+                `"${e.category}"`,
+                `"${e.payment}"`,
+                e.amount,
+                `"${(e.desc || '').replace(/"/g, '""')}"`
+            ]);
+
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `SpendWise_Expenses_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("Expenses exported to CSV file!");
+        }
+
+        // Toast Notification System
+        function showToast(message, type = "success") {
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-600' : 'bg-emerald-600';
+            toast.className = `${bgColor} text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2 transform transition-all duration-300 opacity-0 translate-y-2 pointer-events-auto`;
+            toast.innerHTML = `
+                <i data-lucide="${type === 'error' ? 'alert-circle' : 'check-circle'}" class="w-4 h-4"></i>
+                <span>${escapeHtml(message)}</span>
+            `;
+
+            const container = document.getElementById('toastContainer');
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // HTML Escaping Helper
+        function escapeHtml(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
